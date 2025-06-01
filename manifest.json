@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Professor Ratings Badge",
+  "version": "1.0",
+  "description": "Show RMP ratings next to each instructor on the class search page.",
+  "icons": {
+    "16":  "icon.png",
+    "32":  "icon.png",
+    "48":  "icon.png",
+    "128": "icon.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://pitcsprd.csps.pitt.edu/psp/*",
+        "https://pitcsprd.csps.pitt.edu/psc/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["ProfessorData.csv"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
