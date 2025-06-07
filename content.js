@@ -1,5 +1,3 @@
-console.log('🟢 Professor Ratings extension loaded (with “?”-only links)');
-
 (async function() {
   const csvUrl = chrome.runtime.getURL('ProfessorData.csv');
   let text;
@@ -8,36 +6,42 @@ console.log('🟢 Professor Ratings extension loaded (with “?”-only links)')
   } catch (e) {
     return;
   }
+
   
-  const [, ...lines] = text.trim().split(/\r?\n/);
-  const lookup = {};
+  const lines = text.trim().split(/\r?\n/).slice(1);
+  const lookup = {}; 
   lines.forEach(line => {
-    const [score, ...parts] = line.split(',');
-    const name = parts.join(',').trim();
-    if (name) lookup[name] = parseFloat(score);
+    const [scoreStr, name, url] = line.split(',');
+    const score = parseFloat(scoreStr);
+    if (name) {
+      lookup[name.trim()] = {
+        rating: isNaN(score) ? null : score,
+        url: (url || '').trim()
+      };
+    }
   });
 
-  function levenshtein(a,b) {
-    const m=a.length, n=b.length;
-    const dp=Array.from({length:m+1},()=>[]);
-    for(let i=0;i<=m;i++) dp[i][0]=i;
-    for(let j=0;j<=n;j++) dp[0][j]=j;
-    for(let i=1;i<=m;i++){
-      for(let j=1;j<=n;j++){
+  function levenshtein(a, b) {
+    const m = a.length, n = b.length;
+    const dp = Array.from({ length: m + 1 }, () => []);
+    for (let i = 0; i <= m; i++) dp[i][0] = i;
+    for (let j = 0; j <= n; j++) dp[0][j] = j;
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
         dp[i][j] = Math.min(
-          dp[i-1][j]+1,
-          dp[i][j-1]+1,
-          dp[i-1][j-1] + (a[i-1]===b[j-1]?0:1)
+          dp[i - 1][j] + 1,
+          dp[i][j - 1] + 1,
+          dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
         );
       }
     }
     return dp[m][n];
   }
 
-  function makeBadge(rating) {
+  function makeBadge(r) {
     const span = document.createElement('span');
     span.className = 'prof-rating-badge';
-    span.textContent = (rating != null && !isNaN(rating)) ? rating.toFixed(1) : '?';
+    span.textContent = (r != null && !isNaN(r)) ? r.toFixed(1) : '?';
     span.style.cssText = [
       'display:inline-block',
       'padding:2px 6px',
@@ -47,22 +51,19 @@ console.log('🟢 Professor Ratings extension loaded (with “?”-only links)')
       'font-weight:600',
       'color:#fff'
     ].join(';');
-    
-    if (rating != null && !isNaN(rating)) {
-      if (rating < 3) span.style.backgroundColor = 'red';
-      else if (rating < 4) span.style.backgroundColor = 'orange';
-      else span.style.backgroundColor = 'green';
-    } else {
-      span.style.backgroundColor = 'gray';
-    }
+    span.style.backgroundColor = (r != null && !isNaN(r))
+      ? (r < 3   ? 'red'
+         : r < 4 ? 'orange'
+         : 'green')
+      : 'gray';
     return span;
   }
 
   const seen = new WeakSet();
 
-  function commonPrefix(a,b) {
-    let i=0;
-    while(i<a.length && i<b.length && a[i]===b[i]) i++;
+  function commonPrefix(a, b) {
+    let i = 0;
+    while (i < a.length && i < b.length && a[i] === b[i]) i++;
     return i;
   }
 
@@ -70,53 +71,65 @@ console.log('🟢 Professor Ratings extension loaded (with “?”-only links)')
     if (seen.has(cell)) return;
     seen.add(cell);
 
-    const span = cell.querySelector('span[aria-hidden="false"], span[aria-hidden="true"]');
-    if (!span) return;
-    
-    const rawName = span.innerText.trim();
+    const spanEl = cell.querySelector('span[aria-hidden="false"], span[aria-hidden="true"]');
+    if (!spanEl) return;
+    const rawName = spanEl.textContent.trim();
     const lower = rawName.toLowerCase();
-    if (lower.includes('to be announced') || lower==='tba') return;
+    if (lower.includes('to be announced') || lower === 'tba') return;
 
-    let rating = lookup[rawName];
+    let entry = lookup[rawName];
     let usedName = rawName;
 
-    if (rating == null) {
+    if (!entry) {
       const parts = lower.split(/\s+/);
-      const first = parts[0], last = parts[parts.length-1];
-      const candidates = Object.keys(lookup).filter(k =>
-        k.toLowerCase().split(/\s+/).pop() === last
-      );
-      
+      const first = parts[0], last = parts[parts.length - 1];
+
+      const candidates = Object.keys(lookup).filter(k => {
+        const kl = k.toLowerCase().split(/\s+/).pop();
+        return kl === last;
+      });
+
       if (candidates.length) {
-        let best = {key: null, dist: Infinity};
+        let best = { key: null, dist: Infinity };
         candidates.forEach(k => {
           const d = levenshtein(lower, k.toLowerCase());
-          if (d < best.dist) best = {key: k, dist: d};
+          if (d < best.dist) best = { key: k, dist: d };
         });
-        
         const sim = 1 - best.dist / Math.max(lower.length, best.key.length);
         const prefixLen = commonPrefix(first, best.key.toLowerCase().split(/\s+/)[0]);
-        
-        if (sim >= 0.7 || prefixLen >= 3) {
-          rating = lookup[best.key];
+
+        if (sim >= 0.7) {
+          entry = lookup[best.key];
+          usedName = best.key;
+        } else if (prefixLen >= 3) {
+          entry = lookup[best.key];
           usedName = best.key;
         }
       }
     }
 
-    const row = cell.parentElement.parentElement;
+    const row = cell.parentElement?.parentElement;
     if (!row) return;
-    
     const gridcells = Array.from(row.querySelectorAll('[role="gridcell"]'));
-    const placeholder = gridcells[gridcells.length-1];
+    const placeholder = gridcells[gridcells.length - 1];
     if (!placeholder) return;
 
     placeholder.querySelectorAll('.prof-rating-badge, .prof-rating-link').forEach(el => el.remove());
 
+    const rating = entry?.rating ?? null;
     const badge = makeBadge(rating);
+
     let nodeToInsert;
-    
-    if (rating == null) {
+    if (entry && entry.url) {
+      const a = document.createElement('a');
+      a.className = 'prof-rating-link';
+      a.href = entry.url;
+      a.target = '_blank';
+      a.style.textDecoration = 'none';
+      a.style.color = 'inherit';
+      a.appendChild(badge);
+      nodeToInsert = a;
+    } else {
       const a = document.createElement('a');
       a.className = 'prof-rating-link';
       a.href = 'https://www.ratemyprofessors.com/school/1247';
@@ -125,8 +138,6 @@ console.log('🟢 Professor Ratings extension loaded (with “?”-only links)')
       a.style.color = 'inherit';
       a.appendChild(badge);
       nodeToInsert = a;
-    } else {
-      nodeToInsert = badge;
     }
 
     const dotBtn = placeholder.querySelector('button[class*="IconButton"]');
@@ -141,20 +152,17 @@ console.log('🟢 Professor Ratings extension loaded (with “?”-only links)')
     const cells = document.querySelectorAll('div[header="Instructor"]');
     cells.forEach(processInstructor);
   }
-  
   scanAll();
 
   new MutationObserver(records => {
-    records.forEach(r => {
-      r.addedNodes.forEach(n => {
-        if (!(n instanceof Element)) return;
-        if (n.matches('div[header="Instructor"]')) processInstructor(n);
-        if (n.querySelectorAll) {
-          n.querySelectorAll('div[header="Instructor"]').forEach(processInstructor);
-        }
+    records.forEach(record => {
+      record.addedNodes.forEach(node => {
+        if (!(node instanceof Element)) return;
+        if (node.matches('div[header="Instructor"]')) processInstructor(node);
+        node.querySelectorAll && node.querySelectorAll('div[header="Instructor"]').forEach(processInstructor);
       });
     });
-  }).observe(document.body, {childList: true, subtree: true});
+  }).observe(document.body, { childList: true, subtree: true });
 
   setInterval(scanAll, 5000);
 })();
