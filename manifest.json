@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Pitt Professor Ratings Overlay",
   "version": "1.0",
-  "description": "“See RateMyProfessors scores right inside Pitt’s PeopleSoft Class Search. Color-coded badges next to each instructor show you at a glance who’s highly rated—and one click takes you to their RMP profile (or to Pitt’s school page if we don’t have a score).”",
+  "description": "See RateMyProfessors scores right inside Pitt’s Class Search with color-coded badges next to each instructor.",
   "icons": {
     "16":  "icon.png",
     "32":  "icon.png",
