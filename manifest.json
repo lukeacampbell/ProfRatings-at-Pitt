@@ -1,14 +1,21 @@
 {
   "manifest_version": 3,
-  "name": "Pitt Professor Ratings Overlay",
-  "version": "1.0",
-  "description": "See RateMyProfessors scores right inside Pitt’s Class Search with color-coded badges next to each instructor.",
+  "name": "ProfRatings at Pitt",
+  "version": "1.0.1",
+  "description": "See RateMyProfessors Scores right inside Pitt’s PeopleSoft Class Search",
   "icons": {
     "16":  "icon.png",
     "32":  "icon.png",
     "48":  "icon.png",
     "128": "icon.png"
   },
+    "action": {
+      "default_icon": {
+        "19": "icon.png",
+        "38": "icon.png"
+      }
+    },
+
   "content_scripts": [
     {
       "matches": [

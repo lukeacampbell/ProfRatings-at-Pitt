@@ -152,7 +152,7 @@
     const cells = document.querySelectorAll('div[header="Instructor"]');
     cells.forEach(processInstructor);
   }
-  scanAll();
+  scanAll(); // Initial scan only
 
   new MutationObserver(records => {
     records.forEach(record => {
@@ -163,6 +163,4 @@
       });
     });
   }).observe(document.body, { childList: true, subtree: true });
-
-  setInterval(scanAll, 5000);
 })();
