@@ -1,4 +1,5 @@
 # Professor Ratings Extension
+[<u>Chrome Web Store</u>](https://chromewebstore.google.com/detail/dpoebnefgpfmbmpceddpdifljimmjnja?utm_source=item-share-cb)
 
 A Chrome extension that displays Rate My Professors ratings directly on course registration pages by automatically matching instructor names with professor data.
 
